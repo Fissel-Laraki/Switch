@@ -42,17 +42,21 @@ class Slave:
 
     # Renvoie le fichier logbin et la position
     def getSlaveLogBinInfo(self):
-        self.s.sendline("mysql -e 'show master status' | grep --color=never mysql")
+        self.s.sendline("mysql -e 'show master status' | grep --color=never -v File")
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').replace('\t',' ').split('\n')
         data.pop(0)
         if len(data) == 0 :
-            printc(self.hostname + " : doit avoir un fichier de logbin deja present",'Fail')
+            printc(self.hostname + " : Le logbin n'est pas activé sur le slave",'Fail')
             exit(-1)
         
-        data = data[0].split(' ')
-        return data[0],data[1]
-    
+        try :
+            data = data[0].split(' ')
+            return data[0],data[1]
+        except:
+            printc(self.hostname + " : Le logbin n'est pas activé sur le slave",'Fail')
+            exit(-1)
+
     # Renvoie les infos sur les variable Master_Log_Pos et Relay_Log_Pos 
     def getSlaveCurrentData(self):
         self.s.sendline("mysql -e 'show slave status\G' | grep -E '(Master_Log_Pos|Relay_Log_Pos)' | awk '{print $2}' ")
@@ -107,14 +111,13 @@ class Slave:
 
     def checkUserExistence(self,master):
         cmd = "select user from mysql.user where user = '"+self.replicationUser+"' and host='"+master.ip+"'"
-        self.s.sendline("mysql -e \""+cmd+"\" | grep -v user")
+        self.s.sendline("mysql -e \""+cmd+"\" | grep -v -i user")
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').replace('\t',' ').split('\n')
         data.pop(0)
         username = data[0]
-        print(username)
         if username == self.replicationUser:
-            cmd = "update mysql.user set password=password("+self.replicationPassword+") where user='"+self.replicationUser+"' and host='"+master.ip+"'"
+            cmd = "alter user '"+username+"'@'"+master.ip+"' identified by '"+self.replicationPassword+"'"
             self.s.sendline("mysql -e \""+cmd+"\"")
             self.s.prompt()
             self.s.sendline("mysql -e 'flush privileges'")

@@ -1,3 +1,5 @@
+ # -*-coding:utf-8 -*
+
 from sys import argv
 from pexpect import pxssh
 from Slave import Slave
@@ -11,13 +13,14 @@ class Robot:
         try :
             TIMEOUT = 1
             self.hostname = hostname
+	    #,'IdentityAgent':'/tmp/ssh-wKLNj4eMnc/agent.553'}
             self.s = pxssh.pxssh(options={'StrictHostKeyChecking': 'no'})
             if password is None:
-                self.s.login(self.hostname,port=port,login_timeout=TIMEOUT)
+                self.s.login(self.hostname,user,port=port,ssh_key="/home/fissel/.ssh/id_rsa",login_timeout=TIMEOUT)
             else:
                 self.s.login(self.hostname,user,password=password,port=port,login_timeout=TIMEOUT)
             self.getUsername()
-            printc("Connexion à l'hote "+self.hostname+" en tant que " + self.user + " réussie!",'Success')
+            printc("Connexion à l'hote "+self.hostname+" en tant que " + self.user + " reussie!",'Success')
             if self.user != "root":
                 self.sudo()
             self.type = None
@@ -48,7 +51,7 @@ class Robot:
         data = self.getSlaveData()
         if len(data) == 0: # master
             self.type = "Master"
-        elif data[0] == 'Yes' or data[1] == 'Yes':
+        elif data[0] == 'Yes' and data[1] == 'Yes':
             self.type = "Slave"
         else :
             self.type = "Master"
@@ -84,7 +87,7 @@ def assignMasterSlave(robot1, robot2):
         exit(-1)
      
     if robot1.type == "Slave":
-        slave = Slave(robot1.s,robot2.hostname)
+        slave = Slave(robot1.s,robot1.hostname)
         master = Master(robot2.s,robot2.hostname)
     else :
         slave = Slave(robot2.s,robot2.hostname)
@@ -104,11 +107,11 @@ def display(master,slave):
 
 if __name__=="__main__": 
     if len(argv) != 3 :
-        print("Utilisation : python switch.py ip1 ip2")
+        printc("Utilisation : python switch.py hostname1 hostname2",'Fail')
         exit(-1)
 
-    robot1 = Robot(hostname=argv[1],user='momo',password='redareda',port=2201)
-    robot2 = Robot(hostname=argv[2],user='root',password='Mohamed@90',port=2202)
+    robot1 = Robot(hostname=argv[1],user='fissel')
+    robot2 = Robot(hostname=argv[2],user='fissel')
 
     robot1.recognition()
     robot2.recognition()
