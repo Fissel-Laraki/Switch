@@ -1,9 +1,11 @@
  # -*-coding:utf-8 -*
 
+
 from sys import argv
 from pexpect import pxssh
 from Slave import Slave
 from Master import Master
+from getpass import getuser
 from Common import *
 
 
@@ -13,7 +15,7 @@ class Robot:
         try :
             TIMEOUT = 1
             self.hostname = hostname
-	    #,'IdentityAgent':'/tmp/ssh-wKLNj4eMnc/agent.553'}
+	        #,'IdentityAgent':'/tmp/ssh-wKLNj4eMnc/agent.553'}
             self.s = pxssh.pxssh(options={'StrictHostKeyChecking': 'no'})
             if password is None:
                 self.s.login(self.hostname,user,port=port,ssh_key="/home/fissel/.ssh/id_rsa",login_timeout=TIMEOUT)
@@ -25,7 +27,6 @@ class Robot:
                 self.sudo()
             self.type = None
         except pxssh.ExceptionPxssh:
-            
             printc("Connexion échouée!",'Fail')
             exit(-1)
 
@@ -40,8 +41,12 @@ class Robot:
     def sudo(self,password=None):
         self.s.sendline('sudo su -')
         self.s.set_unique_prompt()
-        self.user = "root"
-        printc("Passage en tant que root ","Success")
+        
+        self.getUsername()
+        if self.user == 'root':
+            printc("Passage en tant que "+ self.user,"Success")
+        else:
+            printc("Le passage en tant que root a échoué",'Fail')
         
         
         
@@ -49,12 +54,15 @@ class Robot:
     # Trouve le type (Slave,Master) d'un serveur
     def recognition(self):
         data = self.getSlaveData()
-        if len(data) == 0: # master
-            self.type = "Master"
-        elif data[0] == 'Yes' and data[1] == 'Yes':
-            self.type = "Slave"
-        else :
-            self.type = "Master"
+        try:
+            if len(data) == 0 or (data[0] == 'No' and data[1] == 'No'): # master
+                self.type = "Master"
+            elif data[0] == 'Yes' and data[1] == 'Yes':
+                self.type = "Slave"
+            else :
+                raise Exception()
+        except:
+            printc("Slave/Master non détécté",'Fail')
 
 
     # Renvoie les infos des variables Slave_IO_Running et Slave_SQL_Running
@@ -65,6 +73,11 @@ class Robot:
         data.pop(0)
         data.pop(len(data)-1)
         return data
+
+    def __del__(self):
+        
+        self.s.close()
+        printc("Deconnexion de "+ self.hostname,"Primary")
 
 # Fonction principale permettant de permuter le slave et le master
 def switch(master,slave):
@@ -84,7 +97,6 @@ def assignMasterSlave(robot1, robot2):
     
     if robot1.type == robot2.type:
         printc("On ne peut pas permuter 2 " + robot2.type,'Fail')
-        exit(-1)
      
     if robot1.type == "Slave":
         slave = Slave(robot1.s,robot1.hostname)
@@ -99,35 +111,61 @@ def checkMasterIp(master,slave):
         printc(slave.hostname + " est bien le slave de " + master.hostname,"Success")
     else:
         printc(slave.hostname + " n'est pas le slave de " + master.hostname,"Fail")
-        exit(-1)
 
 def display(master,slave):
     printc(master,'Primary')
     printc(slave,'Primary')
 
+def getUsersHostnames():
+    users = list()
+    hostnames = list()
+
+
+    for i in range(1,len(argv)):
+        if '@' in argv[i] : 
+            liste = argv[i].split('@')
+            users.append(liste[0])
+            hostnames.append(liste[1])
+        else :
+            users.append(getuser())
+            hostnames.append(argv[i])
+    return users,hostnames
+
 if __name__=="__main__": 
     if len(argv) != 3 :
         printc("Utilisation : python switch.py hostname1 hostname2",'Fail')
-        exit(-1)
+    try :
+        users, hostnames = getUsersHostnames()
+        print(users)
+        print(hostnames)
 
-    robot1 = Robot(hostname=argv[1],user='fissel')
-    robot2 = Robot(hostname=argv[2],user='fissel')
+        #robot1, robot2 = None,None
+        robot1 = Robot(hostname=hostnames[0],user=users[0],port='2201')
+        robot2 = Robot(hostname=hostnames[1],user=users[1],port='2202')
 
-    robot1.recognition()
-    robot2.recognition()
+        robot1.recognition()
+        robot2.recognition()
 
-    master, slave = assignMasterSlave(robot1,robot2)
-    
-    setMasterAndSlaveIp(master,slave)
+        master, slave = assignMasterSlave(robot1,robot2)
+        
+        setMasterAndSlaveIp(master,slave)
 
-    display(master,slave)
-    checkMasterIp(master,slave)
+        display(master,slave)
+        checkMasterIp(master,slave)
 
-    slave.checkUserExistence(master)
-    
-    
-    permuter = input("Voulez vous permuter ?[o/n] : ") 
-    if permuter == 'o':
-        switch(master,slave)
-    else :
-        print("Au revoir")
+        slave.dropAndCreateReplicationUser(master)
+        
+        
+        permuter = input("Voulez vous permuter ?[o/n] : ") 
+        if permuter == 'o':
+            switch(master,slave)
+        
+
+
+    except KeyboardInterrupt:
+        printc("Arret en cours...",'Fail')
+
+    if robot1 is not None:
+        del robot1
+    if robot2 is not None:
+        del robot2

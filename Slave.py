@@ -27,7 +27,6 @@ class Slave:
             i += 1
         if i == int(TOTAL_WAIT/INTERVALLE):
             printc("Slave est encore en train d'écrire.",'Fail')
-            exit(-1)
         printc(self.hostname + " : Arrêt d'écriture depuis les RelayLOG",'Success')
     
     # permet de reset un Slave
@@ -48,14 +47,12 @@ class Slave:
         data.pop(0)
         if len(data) == 0 :
             printc(self.hostname + " : Le logbin n'est pas activé sur le slave",'Fail')
-            exit(-1)
         
         try :
             data = data[0].split(' ')
             return data[0],data[1]
         except:
             printc(self.hostname + " : Le logbin n'est pas activé sur le slave",'Fail')
-            exit(-1)
 
     # Renvoie les infos sur les variable Master_Log_Pos et Relay_Log_Pos 
     def getSlaveCurrentData(self):
@@ -92,7 +89,7 @@ class Slave:
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').split('\n')
         data.pop(0)
-        ip_pattern = "^\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}$"
+        
         try:
             if re.match(ip_pattern,data[3]):
                     return data[4],data[5]
@@ -107,6 +104,7 @@ class Slave:
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').split('\n')
         data.pop(0)
+        print("lol: " +data[0])
         return data[0]
 
     def checkUserExistence(self,master):
@@ -115,13 +113,57 @@ class Slave:
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').replace('\t',' ').split('\n')
         data.pop(0)
+        print(data[0])
         username = data[0]
-        if username == self.replicationUser:
-            cmd = "alter user '"+username+"'@'"+master.ip+"' identified by '"+self.replicationPassword+"'"
-            self.s.sendline("mysql -e \""+cmd+"\"")
-            self.s.prompt()
-            self.s.sendline("mysql -e 'flush privileges'")
-            self.s.prompt()
+        return True if username == self.replicationUser else False
+        
+
+    def dropAndCreateReplicationUser(self,master):
+         
+        if self.checkUserExistence(master) :
+            self.dropUser(master)
+            if  not self.checkUserExistence(master) :
+                self.createUser(master)
+                if self.checkUserExistence(master) :
+                    printc("Création du compte de replication",'Success')
+                else:
+                    printc("Échec lors de la création du compte de réplication",'Fail')
+            else :
+                printc("Échec lors de la suppression du compte de réplication",'Fail')
         else:
-            printc("Le compte de replication n'existe pas dans le Slave","Fail")
+            printc("Le compte de réplication n'existe pas ",'Fail')
+    
+    def dropUser(self,master):
+        cmd = "DROP USER "+self.replicationUser+"@"+master.ip
+        self.s.sendline("mysql -e \""+cmd+"\"")
+        self.s.prompt()
+    
+    def createUser(self,master):
+        cmd = " GRANT REPLICATION SLAVE,REPLICATION CLIENT ON *.* TO '"+self.replicationUser+"'@'"+master.ip+"' identified by '"+self.replicationPassword+"'" 
+        self.s.sendline("mysql -e \""+cmd+"\"")
+        self.s.prompt()
+        data = self.s.before.decode().replace('\r','').split('\n')
+        #data.pop(0)
+        for d in data:
+            print(d+"EOF")
+        self.s.sendline("mysql -e 'flush privileges'")
+        self.s.prompt()
+
+
+
+    def getVersion(self):
+        self.s.sendline("mysql -e \"show variables like \'version\' \" | grep -v Value | awk '{print $2}'") #5.5.68-MariaDB
+        self.s.prompt()
+        data = self.s.before.decode().replace('\r','').replace('\t',' ').split('\n')
+        data.pop(0)
+        res = data[0]
+       
+        try :
+            version = res.split('-')[0]
+            if re.match(version_pattern,version):
+                self.version = version
+            else:
+                raise Exception("")
+        except:
+            printc("Version de mysql non détéctée",'Fail')
             exit(-1)
