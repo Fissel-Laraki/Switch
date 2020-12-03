@@ -18,7 +18,7 @@ class Master:
     def startSlave(self):
         self.s.sendline("mysql -e 'start slave;'")
         self.s.prompt()
-        printc(self.hostname + " : le slave a été démarré",'Success')
+        printc(self.hostname + " : Démarrage du slave",'Success')
     
     # Permet de transformer un master en slave en lui precisant son nouveau master(qui est l'ex slave ici)
     def changeMaster(self,exslave_ip,exslave_logbin,exslave_pos,exslave_user,exslave_pass):
@@ -26,13 +26,13 @@ class Master:
         cmd = "change master to MASTER_HOST='"+exslave_ip+"', MASTER_USER='"+exslave_user+"',MASTER_PASSWORD='"+exslave_pass+"',MASTER_LOG_FILE='"+exslave_logbin+"',MASTER_LOG_POS="+exslave_pos+";"
         self.s.sendline("mysql -e \"" + cmd + "\"") 
         self.s.prompt()
-        printc(self.hostname + " : est devenu slave",'Success')
+        printc(self.hostname + " : Est devenu slave",'Success')
     
     # permet de reset le master BOTH
     def resetMaster(self):
         self.s.sendline("mysql -e 'reset master;'")
         self.s.prompt()
-        printc(self.hostname + " : le master a été reset",'Success')
+        printc(self.hostname + " : RESET du master",'Success')
     
     # Interdit l'ecriture dans le master ( nouveau slave )
     def setReadOnly(self):

@@ -10,7 +10,7 @@ class Slave:
     def __str__(self):
         return self.hostname + " est un Slave."
 
-    # Detecte si un Slave a fini d'ecrire
+    # Detecte si un Slave a fini d'ecrire depuis les log Relay
     def slaveIsReady(self):
         currentData = self.getSlaveCurrentData()
         continuer = True
@@ -28,17 +28,17 @@ class Slave:
         if i == int(TOTAL_WAIT/INTERVALLE):
             printc("Slave est encore en train d'écrire.",'Fail')
             exit(-1)
-        printc(self.hostname + " : a arrêté d'écrire",'Success')
+        printc(self.hostname + " : Arrêt d'écriture depuis les RelayLOG",'Success')
     
     # permet de reset un Slave
     def stopResetSlave(self):
 
         self.s.sendline("mysql -e 'stop slave;'")
         self.s.prompt()
-        printc(self.hostname + " : le slave a été arrêté",'Success')
+        printc(self.hostname + " : Arrêt du slave",'Success')
         self.s.sendline("mysql -e 'reset slave;'")
         self.s.prompt()
-        printc(self.hostname + " : le slave a été reset",'Success')
+        printc(self.hostname + " : RESET du slave",'Success')
 
     # Renvoie le fichier logbin et la position
     def getSlaveLogBinInfo(self):
@@ -69,7 +69,7 @@ class Slave:
     def resetMaster(self):
         self.s.sendline("mysql -e 'reset master;'")
         self.s.prompt()
-        printc(self.hostname + " : a reset son master",'Success')
+        printc(self.hostname + " : RESET du master",'Success')
 
     # Autorise l'ecriture dans le slave ( nouveau master )
     def unsetReadOnly(self):
