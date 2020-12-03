@@ -15,6 +15,7 @@ class Master:
         self.s.prompt()
         printc(self.hostname + " : flushing logs",'Success')
 
+    # Démarre le slave dans le Master
     def startSlave(self):
         self.s.sendline("mysql -e 'start slave;'")
         self.s.prompt()
@@ -28,7 +29,7 @@ class Master:
         self.s.prompt()
         printc(self.hostname + " : Est devenu slave",'Success')
     
-    # permet de reset le master BOTH
+    # permet de reset le master 
     def resetMaster(self):
         self.s.sendline("mysql -e 'reset master;'")
         self.s.prompt()

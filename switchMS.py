@@ -93,6 +93,9 @@ def switch(master,slave):
     master.setReadOnly()
     slave.unsetReadOnly()
 
+"""
+ Reçoit en paramètres 2 robots et retourne un duo slave,master
+"""
 def assignMasterSlave(robot1, robot2):
     
     if robot1.type == robot2.type:
@@ -106,20 +109,23 @@ def assignMasterSlave(robot1, robot2):
         master = Master(robot1.s,robot1.hostname)
     return master, slave
 
+
+# Verifie que le slave donné est bien slave du master donné
 def checkMasterIp(master,slave):
     if master.ip == slave.getMasterIp():
         printc(slave.hostname + " est bien le slave de " + master.hostname,"Success")
     else:
         printc(slave.hostname + " n'est pas le slave de " + master.hostname,"Fail")
 
+# Fonction d'affichage 
 def display(master,slave):
     printc(master,'Primary')
     printc(slave,'Primary')
 
+# Permet de récuperer les 2 serveurs donnés en serveur et de les parser
 def getUsersHostnames():
     users = list()
     hostnames = list()
-
 
     for i in range(1,len(argv)):
         if '@' in argv[i] : 
@@ -131,17 +137,16 @@ def getUsersHostnames():
             hostnames.append(argv[i])
     return users,hostnames
 
-if __name__=="__main__": 
+# Fonction main
+def main():
     if len(argv) != 3 :
-        printc("Utilisation : python switch.py hostname1 hostname2",'Fail')
+        printc("Utilisation : python switchMS.py hostname1 hostname2\npython switchMS.py user1@hostname1 user2@hostname2",'Fail')
     try :
         users, hostnames = getUsersHostnames()
-        print(users)
-        print(hostnames)
 
-        #robot1, robot2 = None,None
-        robot1 = Robot(hostname=hostnames[0],user=users[0],port='2201')
-        robot2 = Robot(hostname=hostnames[1],user=users[1],port='2202')
+        robot1, robot2 = None,None
+        robot1 = Robot(hostname=hostnames[0],user=users[0])
+        robot2 = Robot(hostname=hostnames[1],user=users[1])
 
         robot1.recognition()
         robot2.recognition()
@@ -169,3 +174,6 @@ if __name__=="__main__":
         del robot1
     if robot2 is not None:
         del robot2
+
+if __name__=="__main__": 
+    main()

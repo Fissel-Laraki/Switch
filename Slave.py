@@ -73,6 +73,7 @@ class Slave:
         self.s.sendline("mysql -e 'SET GLOBAL READ_ONLY=OFF;'")
         self.s.prompt()
     
+    # Permet d'obtenir le datadir de mysql
     def getMysqlDataDir(self):
         cmd = "show variables like '%datadir%'"
         self.s.sendline("mysql -e \"" + cmd + "\" | grep datadir | awk '{print $2}'")
@@ -81,6 +82,7 @@ class Slave:
         data.pop(0)
         return data[0]
     
+    # Lit le fichier $datadir/master.info et récupère le username et password du compte de réplication
     def getUserPassFromMasterInfoFile(self):
         
         path = self.getMysqlDataDir()
@@ -99,25 +101,29 @@ class Slave:
         except:
             printc("Le fichier master.info est introuvable","Fail")
     
+    # Retourne l'adresse ip du master à partir du slave
+    # Même si la classe Master contient un attribut ip, on doit s'assurer que l'ip du master de ce slave
+    # correspond à l'ip du Master
     def getMasterIp(self):
         self.s.sendline("mysql -e 'show slave status\G' | grep Master_Host | awk '{print $2}'")
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').split('\n')
         data.pop(0)
-        print("lol: " +data[0])
         return data[0]
 
+    # On vérifie qu'il existe un compte de réplication dans le slave qui est exactement le même que celui
+    # présent dans le master
     def checkUserExistence(self,master):
         cmd = "select user from mysql.user where user = '"+self.replicationUser+"' and host='"+master.ip+"'"
         self.s.sendline("mysql -e \""+cmd+"\" | grep -v -i user")
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').replace('\t',' ').split('\n')
         data.pop(0)
-        print(data[0])
         username = data[0]
         return True if username == self.replicationUser else False
         
 
+    # permet de supprimer un utilisateur et le recréer
     def dropAndCreateReplicationUser(self,master):
          
         if self.checkUserExistence(master) :
@@ -132,25 +138,22 @@ class Slave:
                 printc("Échec lors de la suppression du compte de réplication",'Fail')
         else:
             printc("Le compte de réplication n'existe pas ",'Fail')
-    
+    # Supprime un utilisateur
     def dropUser(self,master):
         cmd = "DROP USER "+self.replicationUser+"@"+master.ip
         self.s.sendline("mysql -e \""+cmd+"\"")
         self.s.prompt()
-    
+    # Crée un utilisateur
     def createUser(self,master):
         cmd = " GRANT REPLICATION SLAVE,REPLICATION CLIENT ON *.* TO '"+self.replicationUser+"'@'"+master.ip+"' identified by '"+self.replicationPassword+"'" 
         self.s.sendline("mysql -e \""+cmd+"\"")
         self.s.prompt()
         data = self.s.before.decode().replace('\r','').split('\n')
-        #data.pop(0)
-        for d in data:
-            print(d+"EOF")
         self.s.sendline("mysql -e 'flush privileges'")
         self.s.prompt()
 
 
-
+    # Permet de connaître la version de mysql utilisée
     def getVersion(self):
         self.s.sendline("mysql -e \"show variables like \'version\' \" | grep -v Value | awk '{print $2}'") #5.5.68-MariaDB
         self.s.prompt()
